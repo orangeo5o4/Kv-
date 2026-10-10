@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kv 电压感受器门控机制 · 动画演示</title>
+<style>
+  :root{ --ink:#0D1B2A; --body:#31465A; --muted:#7A8896; --hair:#DCE4EB; --accent:#0F6FB5; }
+  *{box-sizing:border-box}
+  body{margin:0;padding:48px 24px 64px;background:#F7FAFD;color:var(--body);
+       font-family:"Microsoft YaHei","PingFang SC","Helvetica Neue",Arial,sans-serif;line-height:1.7}
+  main{max-width:820px;margin:0 auto}
+  h1{margin:0 0 6px;font-size:26px;color:var(--ink);letter-spacing:.2px}
+  .cite{margin:0 0 4px;font-size:14px;color:var(--muted)}
+  .lead{margin:22px 0 30px;font-size:15px;color:var(--body)}
+  h2{margin:34px 0 12px;font-size:14px;color:var(--accent);letter-spacing:.6px;text-transform:uppercase}
+  ul{list-style:none;margin:0;padding:0}
+  li{margin-bottom:12px}
+  a.card{display:block;padding:16px 18px;background:#fff;border:1px solid var(--hair);border-radius:10px;
+         text-decoration:none;color:var(--ink);font-weight:700;font-size:15.5px;transition:border-color .15s, transform .15s}
+  a.card:hover{border-color:#9EC4E2;transform:translateY(-1px)}
+  a.card span{display:block;margin-top:4px;font-weight:400;font-size:13.5px;color:var(--body)}
+  .badge{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;background:#E8F3EC;
+         color:#17663A;font-size:11.5px;font-weight:700;vertical-align:2px}
+  .badge.old{background:#F1F3F5;color:#7A8896}
+  .note{margin-top:34px;padding:14px 16px;background:#FFF8EC;border:1px solid #F0DFC0;border-radius:10px;
+        font-size:13.5px;color:#7A5A20}
+  footer{margin-top:30px;font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Kv 电压感受器门控机制 · 动画演示</h1>
+  <p class="cite">Long SB, Tao X, Campbell EB, MacKinnon R. <em>Atomic structure of a voltage-dependent K⁺ channel in a lipid membrane-like environment.</em> Nature 2007;450:376–382.</p>
+  <p class="lead">膜电位变化使 S3b–S4 桨叶沿膜法线向胞内滑动约 15 Å，S4–S5 linker 被推压倾斜，四根 S6 内螺旋向轴心收拢，孔道关闭、K⁺ 停止流动；而 S1、S2、S3a 全程不动。</p>
+
+  <h2>交互动画</h2>
+  <ul>
+    <li><a class="card" href="Kv门控机制3D动画_v2简洁版.html">3D 简洁版：单传感器 + 孔道 / 四聚体<span>圆柱螺旋而不是球堆，关键结构清楚；可看空间关系、结构域相对移动与 K⁺ 流动。上方为胞外，下方为胞内。<span class="badge">推荐</span></span></a></li>
+    <li><a class="card" href="电压感受器门控机制动画.html">2D 逐句对照版<span>画面右侧直接列出论文原文句子，每个元素都能对上出处，适合做静态截图放进 PPT。</span></a></li>
+    <li><a class="card" href="Kv门控机制3D动画.html">3D 初版（球模型）<span>最早的一版，用球链表示螺旋，遮挡较多，已被上面 v2 取代，留作对照。<span class="badge old">旧版</span></span></a></li>
+  </ul>
+
+  <h2>配套讲稿</h2>
+  <ul>
+    <li><a class="card" href="Long2007_Nature_文献汇报.pptx">文献汇报 PPT（英文正文 + 中文备注）</a></li>
+    <li><a class="card" href="Long2007_讲稿.md">中文讲稿（Markdown）</a></li>
+  </ul>
+
+  <p class="note"><strong>发布提醒：</strong>本页只包含自制动画与讲稿。请<strong>不要</strong>把文件夹里的三篇期刊 PDF 一起上传到公开仓库——那属于版权材料，公开托管会有侵权风险。</p>
+
+  <footer>动画均为按论文描述重绘的示意模型，不是沉积坐标；关闭态为论文 Fig. 6b–d 的假想模型。</footer>
+</main>
+</body>
+</html>
