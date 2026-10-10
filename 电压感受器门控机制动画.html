@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>电压感受器门控机制动画 · Long et al., Nature 2007 (schematic)</title>
+<style>
+  :root{
+    --ink:#0D1B2A; --body:#31465A; --muted:#7A8896;
+    --accent:#0F6FB5; --pos:#1F6FB2; --neg:#C0392B; --phe:#1E8E4E;
+    --linker:#E08A2E; --pore:#2E6FBF; --hair:#DCE4EB; --bg:#F4F7FA;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--body);
+    font-family:"Microsoft YaHei","PingFang SC","Helvetica Neue",Arial,sans-serif;}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:0;min-height:100vh}
+  .left{padding:18px 20px 20px}
+  .right{border-left:1px solid var(--hair);background:var(--bg);padding:20px 22px;font-size:13.5px;line-height:1.75}
+  header h1{margin:0 0 4px;font-size:19px;color:var(--ink);letter-spacing:.2px}
+  header p{margin:0 0 14px;font-size:12.5px;color:var(--muted)}
+  .badges{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .badge{display:inline-block;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:700;
+    border:1px solid var(--hair);background:#fff;color:var(--body)}
+  .badge.open{background:#E8F3EC;border-color:#B9DCC6;color:#17663A}
+  .badge.closed{background:#FBEDEA;border-color:#EFC7BF;color:#8E2C1D}
+  svg{width:100%;height:auto;display:block;border:1px solid var(--hair);border-radius:10px;background:#fff}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+  button{font:inherit;font-size:13.5px;font-weight:600;padding:9px 16px;border-radius:8px;cursor:pointer;
+    border:1px solid var(--hair);background:#fff;color:var(--body)}
+  button:hover{border-color:#B9C7D4}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.ghost{background:transparent}
+  label.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--body);cursor:pointer}
+  .hint{margin-top:12px;font-size:12.5px;color:var(--muted);line-height:1.7}
+  h2{font-size:14px;color:var(--ink);margin:0 0 8px;letter-spacing:.2px}
+  h3{font-size:12.5px;color:var(--accent);margin:16px 0 6px;letter-spacing:.3px;text-transform:uppercase}
+  blockquote{margin:0 0 10px;padding:8px 12px;border-left:3px solid var(--accent);background:#fff;
+    font-size:12.5px;line-height:1.7;color:#3B4B5C;border-radius:0 6px 6px 0}
+  ul{margin:6px 0 0;padding-left:18px}
+  li{margin-bottom:5px}
+  .key{font-weight:700;color:var(--ink)}
+  .swatch{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  footer{margin-top:16px;font-size:11.5px;color:var(--muted);line-height:1.7}
+  @media (max-width:1000px){.wrap{grid-template-columns:1fr}.right{border-left:none;border-top:1px solid var(--hair)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="left">
+    <header>
+      <h1>Voltage-sensor gating: the paddle model</h1>
+      <p>Redrawn from the description in Long, Tao, Campbell &amp; MacKinnon, <em>Nature</em> 2007;450:376–382 (Fig. 6 and its legend; Discussion). Schematic, not to atomic scale.</p>
+    </header>
+
+    <div class="badges">
+      <span id="vBadge" class="badge">0 mV · depolarized</span>
+      <span id="sBadge" class="badge open">OPEN · from the crystal structure</span>
+    </div>
+
+    <svg id="scene" viewBox="0 0 1180 700" role="img"
+         aria-label="Schematic animation of the voltage-sensor paddle moving about 15 angstroms and closing the pore">
+      <defs>
+        <marker id="arrowUp" viewBox="0 0 10 10" refX="5" refY="1" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,9 L5,0 L10,9 z" fill="#0F6FB5"></path>
+        </marker>
+        <marker id="arrowDown" viewBox="0 0 10 10" refX="5" refY="1" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,9 L5,0 L10,9 z" fill="#0F6FB5"></path>
+        </marker>
+      </defs>
+
+      <!-- solutions -->
+      <rect x="0" y="0" width="1180" height="170" fill="#F7FBFF"></rect>
+      <rect x="0" y="410" width="1180" height="290" fill="#FBFDFF"></rect>
+      <text x="24" y="30" font-size="15" fill="#8FA3B4">extracellular solution</text>
+      <text x="24" y="470" font-size="15" fill="#8FA3B4">intracellular solution</text>
+
+      <!-- lipid bilayer -->
+      <g id="membrane"></g>
+      <line x1="0" y1="170" x2="1180" y2="170" stroke="#CBD8E4" stroke-width="1.5"></line>
+      <line x1="0" y1="410" x2="1180" y2="410" stroke="#CBD8E4" stroke-width="1.5"></line>
+
+      <!-- membrane thickness scale -->
+      <line x1="86" y1="170" x2="86" y2="410" stroke="#9FB2C2" stroke-width="1.2"
+            marker-start="url(#arrowUp)" marker-end="url(#arrowDown)"></line>
+      <text x="96" y="284" font-size="13" fill="#7A8896">hydrophobic core</text>
+      <text x="96" y="302" font-size="13" fill="#7A8896">≈ 30 Å</text>
+
+      <!-- external aqueous cleft (~10 A below the membrane surface) -->
+      <path d="M616,170 L664,170 L648,252 L628,252 z" fill="#DCEBF9" opacity="0.9"></path>
+      <text x="672" y="196" font-size="12.5" fill="#5B7C9B">external aqueous cleft</text>
+      <text x="672" y="212" font-size="12.5" fill="#5B7C9B">≈ 10 Å below the surface</text>
+
+      <!-- phenylalanine gap -->
+      <rect id="gapBand" x="470" y="256" width="230" height="80" fill="#1E8E4E" opacity="0.10"></rect>
+      <line x1="470" y1="256" x2="700" y2="256" stroke="#1E8E4E" stroke-width="1" stroke-dasharray="4 4"></line>
+      <line x1="470" y1="336" x2="700" y2="336" stroke="#1E8E4E" stroke-width="1" stroke-dasharray="4 4"></line>
+      <text x="470" y="248" font-size="12.5" fill="#1E8E4E">phenylalanine gap · F233 · ≈10 Å with no polar groups</text>
+
+      <!-- static half of the sensor: S1, S2, S3a -->
+      <g id="staticSensor" fill="#93A7B8">
+        <rect x="404" y="196" width="20" height="200" rx="10"></rect>
+        <rect x="456" y="192" width="20" height="208" rx="10"></rect>
+        <rect x="508" y="204" width="20" height="188" rx="10"></rect>
+      </g>
+      <g font-size="14" fill="#6E8296" font-weight="700">
+        <text x="386" y="188">S1</text>
+        <text x="440" y="184">S2</text>
+        <text x="492" y="196">S3a</text>
+      </g>
+
+      <!-- negative clusters -->
+      <g id="negExternal">
+        <circle cx="424" cy="236" r="9" fill="#C0392B"></circle>
+        <circle cx="476" cy="242" r="9" fill="#C0392B"></circle>
+        <text x="352" y="228" font-size="13" fill="#C0392B" font-weight="700">E183</text>
+        <text x="352" y="262" font-size="13" fill="#C0392B" font-weight="700">E226</text>
+        <text x="286" y="246" font-size="12.5" fill="#C0392B">external negative cluster</text>
+      </g>
+      <g id="negInternal">
+        <circle cx="424" cy="356" r="9" fill="#C0392B"></circle>
+        <circle cx="476" cy="350" r="9" fill="#C0392B"></circle>
+        <circle cx="528" cy="344" r="9" fill="#C0392B"></circle>
+        <text x="352" y="378" font-size="13" fill="#C0392B" font-weight="700">E154</text>
+        <text x="352" y="336" font-size="13" fill="#C0392B" font-weight="700">E236</text>
+        <text x="540" y="370" font-size="13" fill="#C0392B" font-weight="700">D259</text>
+        <text x="286" y="366" font-size="12.5" fill="#C0392B">internal negative cluster</text>
+      </g>
+      <text x="286" y="292" font-size="12.5" fill="#7A8896">clusters ≈15 Å apart</text>
+
+      <!-- phenylalanine 233 -->
+      <g id="phe">
+        <circle cx="556" cy="296" r="9" fill="#1E8E4E"></circle>
+        <text x="570" y="300" font-size="13" fill="#1E8E4E" font-weight="700">F233</text>
+      </g>
+
+      <!-- S4–S5 linker and pore (updated every frame) -->
+      <path id="linkerPath" d="M591,409 L762,444" stroke="#E08A2E" stroke-width="20"
+            stroke-linecap="round" fill="none"></path>
+      <text id="linkerLabel" x="640" y="470" font-size="13" fill="#B4701F" font-weight="700">S4–S5 linker</text>
+
+      <path id="s6left" d="M746,322 L716,500" stroke="#2E6FBF" stroke-width="20" stroke-linecap="round" fill="none"></path>
+      <path id="s6right" d="M794,322 L824,500" stroke="#2E6FBF" stroke-width="20" stroke-linecap="round" fill="none"></path>
+      <text x="726" y="312" font-size="14" fill="#24578F" font-weight="700">S6</text>
+      <text x="836" y="312" font-size="14" fill="#24578F" font-weight="700">S6</text>
+      <text id="gateLabel" x="770" y="536" font-size="13" fill="#24578F" text-anchor="middle">gate: open</text>
+
+      <!-- ghost of the open S4 position (fades in when the sensor closes) -->
+      <g id="ghostGroup" transform="rotate(8 606 305)" opacity="0">
+        <rect x="596" y="168" width="20" height="240" rx="10" fill="none"
+              stroke="#9FB2C2" stroke-width="2" stroke-dasharray="6 5"></rect>
+        <text x="600" y="156" font-size="12.5" fill="#9FB2C2" transform="rotate(-8 600 156)">S4 position when open</text>
+      </g>
+
+      <!-- moving paddle: S3b + S4 + gating charges -->
+      <g id="paddle" transform="rotate(8 606 305)">
+        <rect x="556" y="196" width="20" height="118" rx="10" fill="#A9BBCA"></rect>
+        <rect x="596" y="168" width="20" height="240" rx="10" fill="#B9CBD9"></rect>
+        <text x="540" y="188" font-size="14" fill="#6E8296" font-weight="700" transform="rotate(-8 548 188)">S3b</text>
+        <text x="626" y="188" font-size="14" fill="#6E8296" font-weight="700" transform="rotate(-8 634 188)">S4</text>
+
+        <g id="charges"></g>
+      </g>
+
+      <!-- 15 Å displacement guide -->
+      <g id="guideGroup">
+        <line id="guideLine" x1="0" y1="0" x2="0" y2="0" stroke="#0F6FB5" stroke-width="2"
+              marker-start="url(#arrowUp)" marker-end="url(#arrowDown)"></line>
+        <text id="guideLabel" x="0" y="0" font-size="13" fill="#0F6FB5" font-weight="700">0 Å</text>
+      </g>
+
+      <!-- concertina marker -->
+      <circle id="concertina" cx="0" cy="0" r="11" fill="none" stroke="#7A3FA8" stroke-width="2.5" opacity="0"></circle>
+      <text id="concertinaLabel" x="0" y="0" font-size="12.5" fill="#7A3FA8" opacity="0">alpha → 3-10 transition (“concertina”)</text>
+
+      <!-- inward push indicator -->
+      <line id="pushArrow" x1="0" y1="0" x2="0" y2="0" stroke="#0F6FB5" stroke-width="2.5"
+            marker-end="url(#arrowDown)" opacity="0"></line>
+      <text id="pushLabel" x="0" y="0" font-size="12.5" fill="#0F6FB5" opacity="0">charges forced inward</text>
+
+      <text x="24" y="678" font-size="12.5" fill="#8FA3B4">
+        Schematic drawn from Long et al. 2007, Fig. 6 and its legend. Panels b–d of that figure are explicitly hypothetical: the closed state was never solved.
+      </text>
+    </svg>
+
+    <div class="controls">
+      <button id="btnOpen" class="primary">Depolarize · open (0 mV)</button>
+      <button id="btnClose">Hyperpolarize · close (−70 mV)</button>
+      <button id="btnLoop" class="ghost">Auto-loop ▶</button>
+      <label class="chk"><input type="checkbox" id="chkGuide" checked> show 15 Å guide</label>
+    </div>
+    <p class="hint">
+      The crystal structure is the <span class="key">open</span> state at 0 mV. The <span class="key">closed</span> state is the authors' model,
+      in which the S1–S2 half holds position while the S3b–S4 paddle slides about 15 Å toward the intracellular side.
+    </p>
+  </div>
+
+  <aside class="right">
+    <h2>What the animation shows</h2>
+    <p>Every element below is taken from the paper's own description, not from a later textbook version.</p>
+
+    <h3>Legend of the drawing</h3>
+    <ul>
+      <li><span class="swatch" style="background:#93A7B8"></span>S1, S2, S3a — held in place by the S1–pore contact</li>
+      <li><span class="swatch" style="background:#B9CBD9"></span>S3b–S4 — the paddle that moves</li>
+      <li><span class="swatch" style="background:#1F6FB2"></span>R1–R4, K5, R6 — gating charges on S4</li>
+      <li><span class="swatch" style="background:#C0392B"></span>Two negative clusters, ≈15 Å apart</li>
+      <li><span class="swatch" style="background:#1E8E4E"></span>F233 — the phenylalanine gap</li>
+      <li><span class="swatch" style="background:#E08A2E"></span>S4–S5 linker, resting on S6</li>
+      <li><span class="swatch" style="background:#2E6FBF"></span>S6 inner helices — they converge to close the gate</li>
+    </ul>
+
+    <h3>The paper's own words</h3>
+    <blockquote>
+      “The S1 and S2 helices are hypothesized to maintain their position, whereas the S3–S4 paddle has moved inward. The positive charges on S4 now reach towards the intracellular solution, and are stabilized through interactions with the internal negative cluster.”
+      <br><em>— Fig. 6b legend</em>
+    </blockquote>
+    <blockquote>
+      “The α-carbon position of R1 is adjacent to the phenylalanine, representing a displacement perpendicular to the plane of the membrane of approximately 15 Å relative to its location in the open structure.”
+      <br><em>— Fig. 6b legend</em>
+    </blockquote>
+    <blockquote>
+      “The inward displacement of the S4 helix pushes down on the N-terminal end of the S4–S5 linker helix, causing it to tilt towards the intracellular side and to close the pore.”
+      <br><em>— Fig. 6b legend</em>
+    </blockquote>
+    <blockquote>
+      “Because of the shape of the voltage sensor and its effect on membrane thickness, 15 Å would be sufficient to transfer the charges from the electrical outside to the electrical inside.”
+      <br><em>— Discussion</em>
+    </blockquote>
+    <blockquote>
+      “The arginine side chains must apparently flip between charge clusters on their way across the membrane… the absence of polar groups in the central zone might prevent proton transfer across the membrane… and it might also create an energy barrier for the arginines, which would favour a switch-like transition.”
+      <br><em>— Discussion, the “phenylalanine gap”</em>
+    </blockquote>
+    <blockquote>
+      “The zone of 3₁₀-helical secondary structure shifts as a moving segment along S4 in a wave-like fashion. Such a ‘concertina effect’ would turn arginine residues away from the lipid membrane and towards the inside of the voltage sensor as they cross the centre of the hydrophobic core without necessitating rigid body rotation of the S4 helix.”
+      <br><em>— Discussion</em>
+    </blockquote>
+
+    <h3>Scale</h3>
+    <p>8 px = 1 Å. The hydrophobic core is drawn as 240 px = 30 Å; the paddle travel is 120 px = 15 Å, about half the core.</p>
+
+    <h3>Two caveats worth saying out loud</h3>
+    <ul>
+      <li>The closed state was never solved. Panels b–d of Fig. 6 are models, and the authors say so.</li>
+      <li>The 15 Å number comes from functional experiments (MTS accessibility, histidine scanning, biotin–avidin accessibility) mapped onto the structure, not from the crystal itself.</li>
+    </ul>
+
+    <footer>
+      Source: Long SB, Tao X, Campbell EB, MacKinnon R. <em>Atomic structure of a voltage-dependent K⁺ channel in a lipid membrane-like environment.</em> Nature 2007;450:376–382.
+      Quotes are reproduced from the paper's Fig. 6 legend and Discussion.
+    </footer>
+  </aside>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- scale: 8 px = 1 A ---------- */
+  var PX_PER_A = 8;
+  var TRAVEL_PX = 15 * PX_PER_A;      /* 120 px  = 15 A */
+  var ANGLE = 8;                       /* paddle tilt, degrees */
+  var CX = 606, CY = 305;              /* centre of rotation (local to the slide) */
+
+  /* charge positions along the S4 helix, in the paddle's local coordinates */
+  var CHARGES = [
+    { name: "R1", y: 182 },
+    { name: "R2", y: 218 },
+    { name: "R3", y: 254 },
+    { name: "R4", y: 290 },
+    { name: "K5", y: 326 },
+    { name: "R6", y: 362 }
+  ];
+  var S4_X = 606;
+  var S4_BOTTOM_Y = 408;
+  var PORE_ANCHOR = { x: 762, y: 444 };
+
+  /* ---------- membrane ---------- */
+  (function drawMembrane() {
+    var g = document.getElementById("membrane");
+    var ns = "http://www.w3.org/2000/svg";
+    for (var x = 24; x <= 1156; x += 26) {
+      var tailTop = document.createElementNS(ns, "line");
+      tailTop.setAttribute("x1", x); tailTop.setAttribute("y1", 180);
+      tailTop.setAttribute("x2", x); tailTop.setAttribute("y2", 284);
+      tailTop.setAttribute("stroke", "#E4EBF1"); tailTop.setAttribute("stroke-width", 3);
+      g.appendChild(tailTop);
+
+      var tailBottom = document.createElementNS(ns, "line");
+      tailBottom.setAttribute("x1", x); tailBottom.setAttribute("y1", 296);
+      tailBottom.setAttribute("x2", x); tailBottom.setAttribute("y2", 400);
+      tailBottom.setAttribute("stroke", "#E4EBF1"); tailBottom.setAttribute("stroke-width", 3);
+      g.appendChild(tailBottom);
+
+      var headTop = document.createElementNS(ns, "circle");
+      headTop.setAttribute("cx", x); headTop.setAttribute("cy", 170);
+      headTop.setAttribute("r", 7.5); headTop.setAttribute("fill", "#D7E2EC");
+      g.appendChild(headTop);
+
+      var headBottom = document.createElementNS(ns, "circle");
+      headBottom.setAttribute("cx", x); headBottom.setAttribute("cy", 410);
+      headBottom.setAttribute("r", 7.5); headBottom.setAttribute("fill", "#D7E2EC");
+      g.appendChild(headBottom);
+    }
+  })();
+
+  /* ---------- gating charges ---------- */
+  (function drawCharges() {
+    var g = document.getElementById("charges");
+    var ns = "http://www.w3.org/2000/svg";
+    CHARGES.forEach(function (c) {
+      var dot = document.createElementNS(ns, "circle");
+      dot.setAttribute("cx", S4_X); dot.setAttribute("cy", c.y);
+      dot.setAttribute("r", 9); dot.setAttribute("fill", "#1F6FB2");
+      dot.setAttribute("stroke", "#ffffff"); dot.setAttribute("stroke-width", 2);
+      g.appendChild(dot);
+
+      var label = document.createElementNS(ns, "text");
+      label.setAttribute("x", S4_X + 16);
+      label.setAttribute("y", c.y + 5);
+      label.setAttribute("font-size", 13);
+      label.setAttribute("font-weight", "700");
+      label.setAttribute("fill", "#1F6FB2");
+      label.setAttribute("transform", "rotate(-" + ANGLE + " " + (S4_X + 16) + " " + (c.y + 5) + ")");
+      label.textContent = c.name;
+      g.appendChild(label);
+    });
+  })();
+
+  /* ---------- geometry helpers ---------- */
+  function rotatePoint(x, y, cx, cy, deg) {
+    var a = deg * Math.PI / 180;
+    var dx = x - cx, dy = y - cy;
+    return {
+      x: cx + dx * Math.cos(a) - dy * Math.sin(a),
+      y: cy + dx * Math.sin(a) + dy * Math.cos(a)
+    };
+  }
+
+  /* local paddle point -> on-screen point at animation progress t (0 = open, 1 = closed) */
+  function toScreen(x, y, t) {
+    var p = rotatePoint(x, y, CX, CY, ANGLE);
+    return { x: p.x, y: p.y + TRAVEL_PX * t };
+  }
+
+  /* ---------- rendering ---------- */
+  var paddle = document.getElementById("paddle");
+  var ghost = document.getElementById("ghostGroup");
+  var linker = document.getElementById("linkerPath");
+  var linkerLabel = document.getElementById("linkerLabel");
+  var s6l = document.getElementById("s6left");
+  var s6r = document.getElementById("s6right");
+  var gateLabel = document.getElementById("gateLabel");
+  var guideLine = document.getElementById("guideLine");
+  var guideLabel = document.getElementById("guideLabel");
+  var guideGroup = document.getElementById("guideGroup");
+  var concertina = document.getElementById("concertina");
+  var concertinaLabel = document.getElementById("concertinaLabel");
+  var pushArrow = document.getElementById("pushArrow");
+  var pushLabel = document.getElementById("pushLabel");
+  var vBadge = document.getElementById("vBadge");
+  var sBadge = document.getElementById("sBadge");
+
+  function num(v) { return Math.round(v * 100) / 100; }
+
+  function render(t) {
+    /* paddle */
+    paddle.setAttribute("transform",
+      "translate(0 " + num(TRAVEL_PX * t) + ") rotate(" + ANGLE + " " + CX + " " + CY + ")");
+    ghost.setAttribute("opacity", num(0.9 * t));
+
+    /* linker: N-terminus follows the bottom of S4, C-terminus rests on S6 */
+    var s4Bottom = toScreen(S4_X, S4_BOTTOM_Y, t);
+    var anchor = { x: PORE_ANCHOR.x, y: PORE_ANCHOR.y + 26 * t };
+    linker.setAttribute("d",
+      "M" + num(s4Bottom.x) + "," + num(s4Bottom.y) + " L" + num(anchor.x) + "," + num(anchor.y));
+    linkerLabel.setAttribute("x", num((s4Bottom.x + anchor.x) / 2 - 90 + 30 * t));
+    linkerLabel.setAttribute("y", num((s4Bottom.y + anchor.y) / 2 + 24));
+
+    /* pore: the four S6 helices converge when the linker pushes down on them */
+    var gap = 108 + (34 - 108) * t;
+    var pcx = 770;
+    s6l.setAttribute("d", "M746,322 L" + num(pcx - gap / 2) + ",500");
+    s6r.setAttribute("d", "M794,322 L" + num(pcx + gap / 2) + ",500");
+    gateLabel.textContent = t < 0.5 ? "gate: open" : "gate: closing";
+    if (t > 0.85) { gateLabel.textContent = "gate: closed"; }
+
+    /* 15 A displacement guide, measured on R1 */
+    var r1open = toScreen(S4_X, CHARGES[0].y, 0);
+    var r1now = toScreen(S4_X, CHARGES[0].y, t);
+    guideLine.setAttribute("x1", num(r1open.x - 40));
+    guideLine.setAttribute("y1", num(r1open.y));
+    guideLine.setAttribute("x2", num(r1open.x - 40));
+    guideLine.setAttribute("y2", num(r1now.y));
+    guideLabel.setAttribute("x", num(r1open.x - 34));
+    guideLabel.setAttribute("y", num((r1open.y + r1now.y) / 2 + 5));
+    guideLabel.textContent = (15 * t).toFixed(1) + " Å";
+    guideGroup.setAttribute("opacity", showGuide && t > 0.02 ? 1 : 0);
+
+    /* concertina marker: travels along S4 while the transition runs */
+    var cLocalY = 300 + 110 * t;
+    var cPos = toScreen(S4_X - 4, cLocalY, t);
+    concertina.setAttribute("cx", num(cPos.x - 34));
+    concertina.setAttribute("cy", num(cPos.y));
+    concertina.setAttribute("opacity", num(Math.sin(Math.PI * t) * 0.95));
+    concertinaLabel.setAttribute("text-anchor", "end");
+    concertinaLabel.setAttribute("x", num(cPos.x - 46));
+    concertinaLabel.setAttribute("y", num(cPos.y + 5));
+    concertinaLabel.setAttribute("opacity", num(Math.sin(Math.PI * t) * 0.95));
+
+    /* inward push indicator */
+    var pushX = 700, pushTop = 176 + 40 * (1 - t);
+    pushArrow.setAttribute("x1", pushX);
+    pushArrow.setAttribute("y1", num(pushTop));
+    pushArrow.setAttribute("x2", pushX);
+    pushArrow.setAttribute("y2", num(pushTop + 70));
+    pushArrow.setAttribute("opacity", num(Math.sin(Math.PI * t) * 0.95));
+    pushLabel.setAttribute("x", pushX + 8);
+    pushLabel.setAttribute("y", num(pushTop + 60));
+    pushLabel.setAttribute("opacity", num(Math.sin(Math.PI * t) * 0.95));
+
+    /* badges */
+    var closed = t > 0.5;
+    vBadge.textContent = closed ? "−70 mV · hyperpolarized" : "0 mV · depolarized";
+    sBadge.textContent = closed ? "HYPOTHETICAL CLOSED · after Fig. 6b"
+                                : "OPEN · from the crystal structure";
+    sBadge.className = "badge " + (closed ? "closed" : "open");
+  }
+
+  /* ---------- animation state ---------- */
+  var t = 0;         /* current progress */
+  var target = 0;    /* 0 = open, 1 = closed */
+  var step = 0.022;  /* speed */
+  var showGuide = true;
+  var looping = false;
+  var loopTimer = null;
+
+  function tick() {
+    if (t !== target) {
+      if (t < target) { t = Math.min(target, t + step); }
+      else { t = Math.max(target, t - step); }
+      render(t);
+    }
+    window.requestAnimationFrame(tick);
+  }
+
+  function setTarget(v) {
+    target = v;
+    if (t !== target) { render(t); }
+  }
+
+  document.getElementById("btnOpen").addEventListener("click", function () { setTarget(0); });
+  document.getElementById("btnClose").addEventListener("click", function () { setTarget(1); });
+  document.getElementById("chkGuide").addEventListener("change", function (e) {
+    showGuide = e.target.checked;
+    render(t);
+  });
+
+  var loopBtn = document.getElementById("btnLoop");
+  loopBtn.addEventListener("click", function () {
+    looping = !looping;
+    if (looping) {
+      loopBtn.textContent = "Auto-loop ⏸";
+      loopTimer = window.setInterval(function () {
+        setTarget(target === 0 ? 1 : 0);
+      }, 2600);
+    } else {
+      loopBtn.textContent = "Auto-loop ▶";
+      window.clearInterval(loopTimer);
+    }
+  });
+
+  render(0);
+  window.requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
