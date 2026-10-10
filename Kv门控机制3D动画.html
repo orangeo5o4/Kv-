@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kv 电压感受器门控机制 3D 动画 · Long et al., Nature 2007</title>
+<style>
+  :root{
+    --ink:#0D1B2A; --body:#31465A; --muted:#7A8896; --hair:#DCE4EB; --bg:#F4F7FA;
+    --accent:#0F6FB5; --pos:#1F6FB2; --neg:#C0392B; --phe:#1E8E4E;
+    --linker:#E08A2E; --pore:#4E8ED0; --scaffold:#8FA6B8; --paddle:#B7D2E8; --ion:#9B59B6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:#fff;color:var(--body);font-family:"Microsoft YaHei","PingFang SC","Helvetica Neue",Arial,sans-serif}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 360px;height:100%}
+  .left{display:flex;flex-direction:column;padding:14px 16px 12px;min-width:0}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  h1{margin:0;font-size:17px;color:var(--ink);letter-spacing:.2px}
+  .sub{margin:3px 0 0;font-size:12.5px;color:var(--muted)}
+  .badges{display:flex;gap:8px;flex-wrap:wrap}
+  .badge{padding:5px 12px;border-radius:999px;font-size:12.5px;font-weight:700;border:1px solid var(--hair);background:#fff;color:var(--body)}
+  .badge.open{background:#E8F3EC;border-color:#B9DCC6;color:#17663A}
+  .badge.closed{background:#FBEDEA;border-color:#EFC7BF;color:#8E2C1D}
+  .badge.plain{font-weight:600;color:var(--muted)}
+  .stage{position:relative;flex:1 1 auto;min-height:0;margin-top:10px;border:1px solid var(--hair);border-radius:10px;overflow:hidden;background:linear-gradient(#FFFFFF,#F7FAFD)}
+  canvas{display:block;width:100%;height:100%;cursor:grab}
+  canvas.drag{cursor:grabbing}
+  .hud{position:absolute;left:12px;bottom:10px;font-size:11.5px;color:var(--muted);line-height:1.6;pointer-events:none}
+  .controls{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:11px}
+  button{font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--hair);background:#fff;color:var(--body)}
+  button:hover{border-color:#B9C7D4}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.ghost{background:transparent}
+  button.small{padding:6px 11px;font-size:12.5px}
+  button.on{background:#E8F1F9;border-color:#9EC4E2;color:#0B4E82}
+  label.chk{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--body);cursor:pointer}
+  .right{border-left:1px solid var(--hair);background:var(--bg);padding:16px 18px;overflow:auto;font-size:12.8px;line-height:1.72}
+  h2{font-size:13.5px;color:var(--ink);margin:0 0 7px}
+  h3{font-size:12px;color:var(--accent);margin:15px 0 5px;letter-spacing:.3px;text-transform:uppercase}
+  ul{margin:5px 0 0;padding-left:17px}
+  li{margin-bottom:4px}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.08)}
+  blockquote{margin:0 0 9px;padding:7px 11px;border-left:3px solid var(--accent);background:#fff;font-size:12.2px;line-height:1.65;color:#3B4B5C;border-radius:0 6px 6px 0}
+  .key{font-weight:700;color:var(--ink)}
+  footer{margin-top:14px;font-size:11.3px;color:var(--muted);line-height:1.65}
+  @media (max-width:1040px){.wrap{grid-template-columns:1fr;height:auto}.right{border-left:none;border-top:1px solid var(--hair)}.stage{height:66vh}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="left">
+    <div class="head">
+      <div>
+        <h1>Voltage-sensor gating in a Kv channel — 3D</h1>
+        <p class="sub">Idealised model built from the description in Long, Tao, Campbell &amp; MacKinnon, <em>Nature</em> 2007;450:376–382 (Figs. 3, 4 and 6 and their legends).</p>
+      </div>
+      <div class="badges">
+        <span id="vBadge" class="badge">0 mV · depolarized</span>
+        <span id="sBadge" class="badge open">OPEN · crystal structure</span>
+        <span class="badge plain">drag to rotate · scroll to zoom</span>
+      </div>
+    </div>
+
+    <div class="stage">
+      <canvas id="cv"></canvas>
+      <div class="hud">1 grid unit = 1 Å · membrane hydrophobic core 30 Å · paddle travel 15 Å</div>
+    </div>
+
+    <div class="controls">
+      <button id="btnOpen" class="primary">Depolarize · open (0 mV)</button>
+      <button id="btnClose">Hyperpolarize · close (−70 mV)</button>
+      <button id="btnLoop" class="ghost">Auto-loop ▶</button>
+      <button id="btnSpin" class="ghost small">Spin</button>
+      <span style="width:10px"></span>
+      <button id="viewSide" class="small">Side view</button>
+      <button id="viewTop" class="small">Top view (down the pore)</button>
+      <button id="viewTilt" class="small">Tilted view</button>
+      <span style="width:10px"></span>
+      <label class="chk"><input type="checkbox" id="chkMem" checked> membrane</label>
+      <label class="chk"><input type="checkbox" id="chkIon" checked> K⁺ ions</label>
+      <label class="chk"><input type="checkbox" id="chkLab" checked> labels</label>
+      <label class="chk"><input type="checkbox" id="chkGuide" checked> 15 Å guide</label>
+    </div>
+  </div>
+
+  <aside class="right">
+    <h2>What this model shows</h2>
+    <p>Four subunits around one central pore. Each subunit has a voltage-sensor domain on the outside and contributes two helices to the pore in the middle. When the membrane depolarizes, the S3b–S4 paddle of each sensor slides about 15 Å toward the intracellular side, the S4–S5 linker tilts, the four S6 inner helices converge, and K⁺ conduction stops.</p>
+
+    <h3>Legend</h3>
+    <ul>
+      <li><span class="sw" style="background:#8FA6B8"></span>S1, S2, S3a — the half that holds position</li>
+      <li><span class="sw" style="background:#B7D2E8"></span>S3b, S4 — the paddle that moves</li>
+      <li><span class="sw" style="background:#4E8ED0"></span>S5, S6 and the pore helix</li>
+      <li><span class="sw" style="background:#1F6FB2"></span>R1–R4, K5, R6 — gating charges on S4</li>
+      <li><span class="sw" style="background:#C0392B"></span>E183, E226 (external) and E154, E236, D259 (internal) — negative clusters ≈15 Å apart</li>
+      <li><span class="sw" style="background:#1E8E4E"></span>F233 — the phenylalanine at the membrane midpoint</li>
+      <li><span class="sw" style="background:#E08A2E"></span>S4–S5 linker</li>
+      <li><span class="sw" style="background:#9B59B6"></span>K⁺ ions</li>
+      <li><span class="sw" style="background:#D9E2EA"></span>lipid head groups</li>
+    </ul>
+
+    <h3>Three things to point at while it runs</h3>
+    <ul>
+      <li><span class="key">Relative position.</span> Switch to the top view: the four voltage sensors sit on the outside and the pore sits in the middle. Sensing and conduction are physically separate modules.</li>
+      <li><span class="key">What moves and what does not.</span> S1, S2 and S3a stay put; only the S3b–S4 paddle travels. The 15 Å guide measures that travel on R1.</li>
+      <li><span class="key">Consequence at the gate.</span> The S4–S5 linker is pushed down, the S6 helices converge, and the K⁺ stream stops.</li>
+    </ul>
+
+    <h3>The paper's own words</h3>
+    <blockquote>
+      “The S1 and S2 helices are hypothesized to maintain their position, whereas the S3–S4 paddle has moved inward. The positive charges on S4 now reach towards the intracellular solution, and are stabilized through interactions with the internal negative cluster.”
+      <br><em>— Fig. 6b legend</em>
+    </blockquote>
+    <blockquote>
+      “The α-carbon position of R1 is adjacent to the phenylalanine, representing a displacement perpendicular to the plane of the membrane of approximately 15 Å relative to its location in the open structure.”
+      <br><em>— Fig. 6b legend</em>
+    </blockquote>
+    <blockquote>
+      “The inward displacement of the S4 helix pushes down on the N-terminal end of the S4–S5 linker helix, causing it to tilt towards the intracellular side and to close the pore.”
+      <br><em>— Fig. 6b legend</em>
+    </blockquote>
+    <blockquote>
+      “The voltage-sensor paddle is tilted away from the central axis of the voltage sensor, towards the lipid membrane … One entire face of the voltage-sensor paddle is exposed to the lipid membrane.”
+      <br><em>— Results, and Fig. 1c legend</em>
+    </blockquote>
+    <blockquote>
+      “Phenylalanine 233, located near the midpoint of the membrane, separates the external and internal negative clusters … This zone contains a phenylalanine residue … in 355 out of 360 Kv channels, and therefore we call it the ‘phenylalanine gap’.”
+      <br><em>— Results and Discussion</em>
+    </blockquote>
+    <blockquote>
+      “The selectivity filter leads to a water-filled cavity that contains another K ion, near the middle of the membrane, and then the pore narrows again until it becomes closed to ion flow by converging helices near the intracellular surface.”
+      <br><em>— this is the pore architecture as summarised in Gadsby 2009 for KcsA; the same architecture is present in the paddle-chimaera.</em>
+    </blockquote>
+
+    <h3>Honest caveats</h3>
+    <ul>
+      <li>This is an <span class="key">idealised model</span>, not the deposited coordinates. Helices are drawn as smooth α-helices at the radii and lengths reported for the paddle-chimaera; the four-fold arrangement, the two negative clusters, F233, the ~10 Å hydrophobic central zone and the 15 Å travel all follow the paper.</li>
+      <li>The closed state was <span class="key">never solved</span>. The closing motion here is the paper's Fig. 6b–d hypothesis, animated.</li>
+      <li>The 15 Å figure comes from functional experiments (MTS accessibility, histidine scanning, biotin–avidin accessibility) mapped onto the structure, not from the crystal itself.</li>
+      <li>Ion throughput (~10⁸ K⁺ s⁻¹) is far too fast to animate literally; the ion stream is slowed by many orders of magnitude.</li>
+    </ul>
+
+    <h3>One more version of the same idea</h3>
+    <p>The paper depicts the paddle as a rigid unit that slides. It also offers an alternative in which an alpha-to-3-10 helical transition sweeps along S4 like a wave, the &ldquo;concertina effect&rdquo;, turning arginines away from the lipid without rigid-body rotation. This animation shows the rigid-slide version; the other version is drawn in the 2D animation shipped next to this file.</p>
+
+    <footer>
+      Source: Long SB, Tao X, Campbell EB, MacKinnon R. <em>Atomic structure of a voltage-dependent K⁺ channel in a lipid membrane-like environment.</em> Nature 2007;450:376–382. Structure deposited as PDB 2R9R.
+    </footer>
+  </aside>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============================ helpers ============================ */
+  var TAU = Math.PI * 2;
+  function hexToRgb(h) {
+    h = h.replace("#", "");
+    if (h.length === 3) { h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; }
+    var n = parseInt(h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function mix(c, target, amount) {
+    var a = hexToRgb(c);
+    return "rgb(" + Math.round(a[0] + (target - a[0]) * amount) + "," +
+                    Math.round(a[1] + (target - a[1]) * amount) + "," +
+                    Math.round(a[2] + (target - a[2]) * amount) + ")";
+  }
+  function lighten(c, a) { return mix(c, 255, a); }
+  function darken(c, a) { return mix(c, 0, a); }
+
+  var sprites = {};
+  function sprite(color) {
+    if (sprites[color]) { return sprites[color]; }
+    var S = 64, cv = document.createElement("canvas");
+    cv.width = S; cv.height = S;
+    var g = cv.getContext("2d");
+    var grad = g.createRadialGradient(S * 0.34, S * 0.30, S * 0.04, S * 0.5, S * 0.5, S * 0.5);
+    grad.addColorStop(0.00, lighten(color, 0.62));
+    grad.addColorStop(0.45, lighten(color, 0.16));
+    grad.addColorStop(0.80, color);
+    grad.addColorStop(1.00, darken(color, 0.45));
+    g.fillStyle = grad;
+    g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 1, 0, TAU); g.fill();
+    sprites[color] = cv;
+    return cv;
+  }
+
+  /* ============================ geometry ============================ */
+  /* Local frame per subunit: +x points radially outward from the pore axis,
+     y is tangential, z is the membrane normal (extracellular = +z).
+     All lengths in ångström.                                                    */
+  var SUB = 4;
+  var TRAVEL = 15;            /* paddle displacement, as stated in the paper   */
+  var CORE = 30;              /* hydrophobic core thickness                    */
+
+  var BEADS = [];             /* {lx,ly,lz,sub,part,u,r,color}                 */
+  var LABELS = [];            /* {text,lx,ly,lz,sub,part,u,color,dy}           */
+  var IONS = [];              /* {z}                                           */
+
+  function bead(lx, ly, lz, sub, part, u, r, color) {
+    BEADS.push({ lx: lx, ly: ly, lz: lz, sub: sub, part: part, u: u, r: r, color: color });
+  }
+
+  /* Build one smooth α-helix as a string of beads.
+     from/to are [x,y,z] in the subunit's local frame.                          */
+  function helix(from, to, sub, part, color, opts) {
+    opts = opts || {};
+    var helixRadius = opts.helixRadius != null ? opts.helixRadius : 1.35;
+    var beadRadius = opts.beadRadius != null ? opts.beadRadius : 2.35;
+    var spacing = opts.spacing || 2.3;
+    var turns = opts.turns != null ? opts.turns : null;
+    var chargeAt = opts.chargeAt || null;   /* {fraction: name} */
+    var dx = to[0] - from[0], dy = to[1] - from[1], dz = to[2] - from[2];
+    var len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    var n = Math.max(2, Math.round(len / spacing));
+    var turnsN = turns != null ? turns : len / 5.4;
+
+    var ux = dx / len, uy = dy / len, uz = dz / len;
+    /* two vectors perpendicular to the axis */
+    var ax = -uy, ay = ux, az = 0;
+    var alen = Math.sqrt(ax * ax + ay * ay + az * az);
+    if (alen < 1e-6) { ax = 1; ay = 0; az = 0; alen = 1; }
+    ax /= alen; ay /= alen; az /= alen;
+    var bx = uy * az - uz * ay;
+    var by = uz * ax - ux * az;
+    var bz = ux * ay - uy * ax;
+
+    for (var i = 0; i < n; i++) {
+      var f = i / (n - 1);
+      var ang = f * turnsN * TAU;
+      var c = Math.cos(ang) * helixRadius, s = Math.sin(ang) * helixRadius;
+      bead(from[0] + dx * f + ax * c + bx * s,
+           from[1] + dy * f + ay * c + by * s,
+           from[2] + dz * f + az * c + bz * s,
+           sub, part, f, beadRadius, color);
+    }
+    if (chargeAt) {
+      Object.keys(chargeAt).forEach(function (key) {
+        var f = parseFloat(key, 10);
+        bead(from[0] + dx * f, from[1] + dy * f, from[2] + dz * f,
+             sub, part, f, 3.1, "#1F6FB2");
+        LABELS.push({ text: chargeAt[key], lx: from[0] + dx * f + 4.6,
+                      ly: from[1] + dy * f, lz: from[2] + dz * f,
+                      sub: sub, part: part, u: f, color: "#1F6FB2", dy: -1 });
+      });
+    }
+    return { len: len, from: from, to: to };
+  }
+
+  /* ---- per-subunit helices (radii and spans follow the reported architecture) */
+  var C_SCAFFOLD = "#8FA6B8", C_PADDLE = "#B7D2E8", C_PORE = "#4E8ED0",
+      C_LINK = "#E08A2E", C_NEG = "#C0392B", C_PHE = "#1E8E4E";
+
+  for (var k = 0; k < SUB; k++) {
+    /* --- S1, S2, S3a: the half that holds its position --- */
+    helix([21, 0, -6], [25, 0, 26], k, "static", C_SCAFFOLD, { spacing: 1.9 });
+    helix([27, 0, -4], [29, 0, 26], k, "static", C_SCAFFOLD, { spacing: 1.9 });
+    helix([26, 0, -16], [28, 0, 14], k, "static", C_SCAFFOLD, { spacing: 1.9 });
+
+    /* --- S3b + S4: the paddle, tilted outward toward the lipid --- */
+    helix([30, 0, -2], [32.5, 0, 18], k, "paddle", C_PADDLE, { spacing: 1.9 });
+    helix([27, 0, -20], [30, 0, 18], k, "paddle", C_PADDLE, {
+      spacing: 1.8,
+      chargeAt: { "0.98": "R1", "0.83": "R2", "0.68": "R3", "0.53": "R4", "0.38": "K5", "0.23": "R6" }
+    });
+
+    /* --- S5, pore helix, S6: the pore --- */
+    helix([16, 0, -8], [18, 0, 24], k, "static", C_PORE, { spacing: 1.9 });
+    helix([10, 0, 6], [7, 0, 17], k, "static", C_PORE, { spacing: 1.8, beadRadius: 2.1 });
+    helix([11, 0, 14], [10, 0, -24], k, "gate", C_PORE, { spacing: 1.8, beadRadius: 2.35 });
+
+    /* --- selectivity filter: four short strands around the axis at r ≈ 3.2 Å --- */
+    helix([3.2, 0, 18], [3.2, 0, 11], k, "static", "#2E6FBF", { spacing: 1.8, beadRadius: 2.0, helixRadius: 0.5 });
+
+    /* --- negative clusters and the phenylalanine --- */
+    bead(23, 0, 7, k, "static", 0, 2.9, C_NEG);
+    bead(27, 0, 8, k, "static", 0, 2.9, C_NEG);
+    bead(20, 0, -8, k, "static", 0, 2.9, C_NEG);
+    bead(26, 0, -8, k, "static", 0, 2.9, C_NEG);
+    bead(26, 0, -9, k, "static", 0, 2.9, C_NEG);
+    bead(27, 0, 0, k, "static", 0, 3.0, C_PHE);
+  }
+
+  /* cluster / phenylalanine labels on one subunit only */
+  LABELS.push({ text: "E183 / E226", lx: 28, ly: 0, lz: 7, sub: 0, part: "static", color: C_NEG, dy: -4 });
+  LABELS.push({ text: "E154 / E236 / D259", lx: 27, ly: 0, lz: -8.5, sub: 0, part: "static", color: C_NEG, dy: 12 });
+  LABELS.push({ text: "F233  (phenylalanine gap)", lx: 31, ly: 0, lz: 0, sub: 0, part: "static", color: C_PHE, dy: -3 });
+
+  /* helix labels (subunit 0) */
+  LABELS.push({ text: "S1", lx: 22, ly: 0, lz: -9, sub: 0, part: "static", color: "#6E8296", dy: 4 });
+  LABELS.push({ text: "S2", lx: 28.5, ly: 0, lz: 28, sub: 0, part: "static", color: "#6E8296", dy: -3 });
+  LABELS.push({ text: "S3a", lx: 27, ly: 0, lz: -18, sub: 0, part: "static", color: "#6E8296", dy: 4 });
+  LABELS.push({ text: "S3b", lx: 33.5, ly: 0, lz: 20, sub: 0, part: "paddle", color: "#6E8296", dy: -3 });
+  LABELS.push({ text: "S4", lx: 31, ly: 0, lz: -21, sub: 0, part: "paddle", color: "#6E8296", dy: 4 });
+  LABELS.push({ text: "S5", lx: 15, ly: 0, lz: 26, sub: 0, part: "static", color: "#3E6EA8", dy: -3 });
+  LABELS.push({ text: "S6", lx: 9, ly: 0, lz: -26, sub: 0, part: "gate", color: "#3E6EA8", dy: 4 });
+  LABELS.push({ text: "selectivity filter", lx: 4.4, ly: 0, lz: 21, sub: 0, part: "static", color: "#2E6FBF", dy: -3 });
+  LABELS.push({ text: "gate", lx: 6.5, ly: 0, lz: -20, sub: 0, part: "gate", color: "#2E6FBF", dy: 12 });
+
+  /* --- lipid head groups: two leaflets in a ring around the channel --- */
+  (function lipids() {
+    var radii = [20, 27, 34, 41, 48];
+    var angles = 26;
+    for (var li = 0; li < radii.length; li++) {
+      for (var ai = 0; ai < angles; ai++) {
+        var a = (ai / angles) * TAU + (li % 2) * (TAU / angles / 2);
+        var x = Math.cos(a) * radii[li], y = Math.sin(a) * radii[li];
+        bead(x, y, CORE / 2, 0, "mem", 0, 2.0, "#D9E2EA");
+        bead(x, y, -CORE / 2, 0, "mem", 0, 2.0, "#D9E2EA");
+      }
+    }
+  })();
+
+  /* --- K+ ions: single file along the pore axis --- */
+  for (var ii = 0; ii < 9; ii++) { IONS.push({ z: -46 + ii * 11 }); }
+
+  /* ============================ camera ============================ */
+  var canvas = document.getElementById("cv");
+  var ctx = canvas.getContext("2d");
+  var view = { yaw: 0.95, pitch: 0.30, zoom: 4.0, panX: 0, panY: 0, spin: false };
+  var size = { w: 900, h: 560, dpr: 1 };
+
+  function resize() {
+    var rect = canvas.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    size.w = Math.max(320, rect.width);
+    size.h = Math.max(300, rect.height);
+    size.dpr = dpr;
+    canvas.width = Math.round(size.w * dpr);
+    canvas.height = Math.round(size.h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  /* world -> screen.  Camera sits at -y looking toward +y.                   */
+  function project(x, y, z) {
+    var cy = Math.cos(view.yaw), sy = Math.sin(view.yaw);
+    var x1 = x * cy - y * sy, y1 = x * sy + y * cy;
+    var cp = Math.cos(view.pitch), sp = Math.sin(view.pitch);
+    var y2 = y1 * cp - z * sp, z2 = y1 * sp + z * cp;
+    return {
+      x: size.w / 2 + x1 * view.zoom + view.panX,
+      y: size.h / 2 - z2 * view.zoom + view.panY,
+      d: y2
+    };
+  }
+
+  /* local (subunit) -> world, applying the domain motion for progress t      */
+  function place(b, t) {
+    var a = b.sub * TAU / SUB;
+    var ca = Math.cos(a), sa = Math.sin(a);
+    var x = b.lx * ca - b.ly * sa;
+    var y = b.lx * sa + b.ly * ca;
+    var z = b.lz;
+
+    if (b.part === "paddle") {
+      z -= TRAVEL * t;                       /* the paddle slides inward        */
+    } else if (b.part === "gate") {
+      /* the four S6 inner helices converge near the intracellular end          */
+      var u = b.u;                           /* u = 0 at the top, 1 at the gate */
+      var pull = 7.0 * t * u * u;
+      var rho = Math.sqrt(x * x + y * y) || 1e-6;
+      var s = Math.max(0.05, (rho - pull) / rho);
+      x *= s; y *= s;
+      z -= 2.0 * t * u * u;
+    }
+    return { x: x, y: y, z: z };
+  }
+
+  /* ============================ drawing ============================ */
+  var showMem = true, showIon = true, showLab = true, showGuide = true;
+
+  function draw() {
+    var t = state.t;
+    ctx.clearRect(0, 0, size.w, size.h);
+
+    /* membrane surface discs, drawn first as translucent planes */
+    if (showMem) {
+      drawDisc(CORE / 2 + 2.0, "rgba(120,158,196,0.13)");
+      drawDisc(-CORE / 2 - 2.0, "rgba(120,158,196,0.13)");
+    }
+
+    var list = [];
+    function push(p, r, color) {
+      list.push({ pr: project(p.x, p.y, p.z), r: r, color: color });
+    }
+    for (var i = 0; i < BEADS.length; i++) {
+      var b = BEADS[i];
+      if (b.part === "mem" && !showMem) { continue; }
+      push(place(b, t), b.r, b.color);
+    }
+
+    /* ---- S4–S5 linker: quadratic curve from the S4 bottom to the S5 base --- */
+    for (var s2 = 0; s2 < SUB; s2++) {
+      var a2 = s2 * TAU / SUB, ca2 = Math.cos(a2), sa2 = Math.sin(a2);
+      var p0 = { x: 27 * ca2, y: 27 * sa2, z: -20 - TRAVEL * t };   /* N-terminus, moves with S4 */
+      var p2 = { x: 16 * ca2, y: 16 * sa2, z: -8 };                 /* C-terminus, on S5          */
+      var mid = { x: (p0.x + p2.x) / 2 * 1.06, y: (p0.y + p2.y) / 2 * 1.06, z: (p0.z + p2.z) / 2 - 2.5 };
+      for (var q = 0; q <= 8; q++) {
+        var f = q / 8, g = 1 - f;
+        var lx = g * g * p0.x + 2 * g * f * mid.x + f * f * p2.x;
+        var ly = g * g * p0.y + 2 * g * f * mid.y + f * f * p2.y;
+        var lz = g * g * p0.z + 2 * g * f * mid.z + f * f * p2.z;
+        push({ x: lx, y: ly, z: lz }, 2.5, C_LINK);
+      }
+    }
+    var linkerAnchor = place({ lx: 21, ly: 0, lz: -14 - 7 * t, sub: 0, part: "static" }, t);
+
+    /* ---- the gate aperture, drawn as a ring of small beads on the axis ---- */
+    var gateR = 6.2 - 5.4 * t;
+    for (var gi = 0; gi < 12; gi++) {
+      var ga = gi / 12 * TAU;
+      push({ x: Math.cos(ga) * gateR, y: Math.sin(ga) * gateR, z: -18 }, 1.5, gateR > 2.5 ? "#7FB0DE" : "#C9A227");
+    }
+
+    /* ---- K+ ions ---- */
+    if (showIon) {
+      for (var n2 = 0; n2 < IONS.length; n2++) {
+        var iz = IONS[n2].z;
+        if (iz < -52 || iz > 52) { continue; }
+        push({ x: 0, y: 0, z: iz }, 1.9, "#9B59B6");
+      }
+    }
+
+    /* ---- painter's algorithm: largest depth first ---- */
+    list.sort(function (a, b) { return b.pr.d - a.pr.d; });
+
+    for (var d = 0; d < list.length; d++) {
+      var it = list[d];
+      var pr = it.pr;
+      var rr = Math.max(1.1, it.r * view.zoom * (0.86 + 0.14 * (1 - Math.min(1, Math.max(-1, pr.d / 70)))));
+      var sp = sprite(it.color);
+      ctx.drawImage(sp, pr.x - rr, pr.y - rr, rr * 2, rr * 2);
+    }
+
+    /* ---- labels ---- */
+    if (showLab) {
+      ctx.font = "600 12px 'Microsoft YaHei', Arial, sans-serif";
+      ctx.textBaseline = "middle";
+      for (var li2 = 0; li2 < LABELS.length; li2++) {
+        var L = LABELS[li2];
+        var pos = place({ lx: L.lx, ly: L.ly, lz: L.lz, sub: L.sub, part: L.part, u: 0.6 }, t);
+        var q2 = project(pos.x, pos.y, pos.z);
+        drawLabel(L.text, q2.x, q2.y + (L.dy || 0), L.color);
+      }
+      var lp = project(linkerAnchor.x, linkerAnchor.y, linkerAnchor.z);
+      drawLabel("S4–S5 linker", lp.x, lp.y - 14, "#B4701F");
+      var top = project(0, 0, 34);
+      drawLabel("K⁺", top.x + 45, top.y, "#7A3FA8");
+    }
+
+    /* ---- 15 Å travel guide, measured on R1 of subunit 0 ---- */
+    if (showGuide) {
+      var r1open = place({ lx: 30.9, ly: 0, lz: 17.2, sub: 0, part: "paddle", u: 0.98 }, 0);
+      var r1now = place({ lx: 30.9, ly: 0, lz: 17.2, sub: 0, part: "paddle", u: 0.98 }, t);
+      var a3 = project(r1open.x, r1open.y, r1open.z);
+      var b3 = project(r1now.x, r1now.y, r1now.z);
+      ctx.save();
+      ctx.strokeStyle = "#0F6FB5"; ctx.lineWidth = 2;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(a3.x, a3.y); ctx.lineTo(b3.x, b3.y); ctx.stroke();
+      ctx.setLineDash([]);
+      arrowHead(ctx, a3.x, a3.y, b3.x, b3.y);
+      arrowHead(ctx, b3.x, b3.y, a3.x, a3.y);
+      ctx.fillStyle = "#0F6FB5"; ctx.font = "700 12px Arial";
+      ctx.fillText((TRAVEL * t).toFixed(1) + " Å", (a3.x + b3.x) / 2 - 34, (a3.y + b3.y) / 2);
+      ctx.restore();
+    }
+
+    /* ---- status text ---- */
+    ctx.fillStyle = "#8FA3B4";
+    ctx.font = "12px 'Microsoft YaHei', Arial";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(t > 0.5 ? "state: hypothetical closed (Fig. 6b model) — K⁺ conduction blocked"
+                         : "state: open (crystal structure) — K⁺ conducting", 14, size.h - 34);
+    ctx.fillText("four subunits · voltage sensors outside · one central pore", 14, size.h - 16);
+  }
+
+  function drawLabel(text, x, y, color) {
+    var w = ctx.measureText(text).width;
+    ctx.save();
+    ctx.fillStyle = "rgba(255,255,255,0.82)";
+    ctx.beginPath();
+    var pad = 4, h = 15;
+    ctx.rect(x - w / 2 - pad, y - h / 2, w + pad * 2, h);
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.fillText(text, x, y + 1);
+    ctx.restore();
+  }
+
+  function arrowHead(c, fx, fy, tx, ty) {
+    var ang = Math.atan2(ty - fy, tx - fx), len = 8;
+    c.beginPath();
+    c.moveTo(fx, fy);
+    c.lineTo(fx + Math.cos(ang - 0.4) * len, fy + Math.sin(ang - 0.4) * len);
+    c.lineTo(fx + Math.cos(ang + 0.4) * len, fy + Math.sin(ang + 0.4) * len);
+    c.closePath(); c.fill();
+  }
+
+  function drawDisc(z, fill) {
+    ctx.beginPath();
+    var first = true;
+    for (var i = 0; i <= 48; i++) {
+      var a = i / 48 * TAU;
+      var p = project(Math.cos(a) * 56, Math.sin(a) * 56, z);
+      if (first) { ctx.moveTo(p.x, p.y); first = false; } else { ctx.lineTo(p.x, p.y); }
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+
+  /* ============================ animation ============================ */
+  var state = { t: 0, target: 0, looping: false, timer: null, last: 0, ionPhase: 0 };
+  var SPEED = 0.9;   /* 15 Å per ~1.1 s */
+
+  function step(now) {
+    var dt = state.last ? Math.min(0.05, (now - state.last) / 1000) : 0.016;
+    state.last = now;
+
+    if (state.t !== state.target) {
+      var dir = state.target > state.t ? 1 : -1;
+      state.t += dir * SPEED * dt;
+      if ((dir > 0 && state.t > state.target) || (dir < 0 && state.t < state.target)) {
+        state.t = state.target;
+      }
+      syncBadges();
+    }
+
+    /* ions: they slow down as the gate closes, and finish leaving the pore   */
+    var gateZ = -18;
+    for (var i = 0; i < IONS.length; i++) {
+      var ion = IONS[i];
+      var v;
+      if (state.t < 0.35) { v = 26; }                      /* conducting      */
+      else if (ion.z > gateZ) { v = 26 * (1 - state.t); }   /* finishing exit  */
+      else { v = 1.2 * (1 - state.t); }                     /* blocked below   */
+      ion.z += v * dt;
+      if (ion.z > 52) { ion.z -= 104; }
+    }
+
+    if (view.spin) { view.yaw += 0.25 * dt; }
+
+    draw();
+    window.requestAnimationFrame(step);
+  }
+
+  function syncBadges() {
+    var closed = state.t > 0.5;
+    document.getElementById("vBadge").textContent = closed ? "−70 mV · hyperpolarized" : "0 mV · depolarized";
+    var sb = document.getElementById("sBadge");
+    sb.textContent = closed ? "HYPOTHETICAL CLOSED · Fig. 6b model" : "OPEN · crystal structure";
+    sb.className = "badge " + (closed ? "closed" : "open");
+  }
+
+  /* ============================ interaction ============================ */
+  document.getElementById("btnOpen").addEventListener("click", function () { state.target = 0; });
+  document.getElementById("btnClose").addEventListener("click", function () { state.target = 1; });
+
+  var loopBtn = document.getElementById("btnLoop");
+  loopBtn.addEventListener("click", function () {
+    state.looping = !state.looping;
+    if (state.looping) {
+      loopBtn.textContent = "Auto-loop ⏸";
+      state.timer = window.setInterval(function () { state.target = state.target === 0 ? 1 : 0; }, 3200);
+    } else {
+      loopBtn.textContent = "Auto-loop ▶";
+      window.clearInterval(state.timer);
+    }
+  });
+
+  var spinBtn = document.getElementById("btnSpin");
+  spinBtn.addEventListener("click", function () {
+    view.spin = !view.spin;
+    spinBtn.classList.toggle("on", view.spin);
+  });
+
+  function setView(btn, yaw, pitch) {
+    view.yaw = yaw; view.pitch = pitch;
+    ["viewSide", "viewTop", "viewTilt"].forEach(function (id) {
+      document.getElementById(id).classList.toggle("on", id === btn);
+    });
+  }
+  document.getElementById("viewSide").addEventListener("click", function () { setView("viewSide", 0.0, 0.06); });
+  document.getElementById("viewTop").addEventListener("click", function () { setView("viewTop", 0.95, 1.42); });
+  document.getElementById("viewTilt").addEventListener("click", function () { setView("viewTilt", 0.95, 0.30); });
+
+  document.getElementById("chkMem").addEventListener("change", function (e) { showMem = e.target.checked; });
+  document.getElementById("chkIon").addEventListener("change", function (e) { showIon = e.target.checked; });
+  document.getElementById("chkLab").addEventListener("change", function (e) { showLab = e.target.checked; });
+  document.getElementById("chkGuide").addEventListener("change", function (e) { showGuide = e.target.checked; });
+
+  /* orbit */
+  var drag = null;
+  canvas.addEventListener("pointerdown", function (e) {
+    drag = { x: e.clientX, y: e.clientY, yaw: view.yaw, pitch: view.pitch };
+    canvas.classList.add("drag");
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener("pointermove", function (e) {
+    if (!drag) { return; }
+    view.yaw = drag.yaw + (e.clientX - drag.x) * 0.008;
+    view.pitch = Math.max(-1.45, Math.min(1.45, drag.pitch + (e.clientY - drag.y) * 0.006));
+  });
+  canvas.addEventListener("pointerup", function (e) {
+    drag = null;
+    canvas.classList.remove("drag");
+    try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+  });
+  canvas.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    var f = Math.pow(1.0016, -e.deltaY);
+    view.zoom = Math.max(1.0, Math.min(6.5, view.zoom * f));
+  }, { passive: false });
+
+  window.addEventListener("resize", resize);
+  setView("viewTilt", 0.95, 0.30);
+  resize();
+  syncBadges();
+  window.requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>
